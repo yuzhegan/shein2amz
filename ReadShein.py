@@ -5,10 +5,11 @@
 #!/usr/bin/env
 from icecream import ic
 import pandas as pd
+import xlsxwriter
 
 # %%
 # 文件编码格式需要处理下
-SheinData = pd.read_csv("reslut.csv", encoding = "gbk")
+SheinData = pd.read_csv("reslut.csv", encoding = "utf-8")
 
 # %%
 splist = []
@@ -42,18 +43,33 @@ def get_sheinspdata(SheinData, splist):
 # %%
 # 将每条listing放入列表
 sheinspdata = get_sheinspdata(SheinData, splist)
-ic(sheinspdata[0])
+# ic(sheinspdata[0])
 ## ---------------------以上把shein的数据做了处理,拆分成多个dataframe----
 
 # %%
 # 这里需要处理模板数据,将模板数据和shein数据进行重组
 template_data = pd.read_excel("template-jp.xlsm", header=2, sheet_name="テンプレート")
-ic(template_data)
+bullet_header= pd.read_excel("template-jp.xlsm", sheet_name="テンプレート")
+headers = bullet_header.iloc[0:2]
+# headers 表头有空的列,Unnamed: 5 , 有Unnamed的的列名替换成空
+new_columns =[]
+for column in headers.columns:
+    if "Unnamed" in column:
+        column = ""
+    new_columns.append(column)
+headers.columns = new_columns
+# ic(template_data)
 # %%
 # 创建新的模板用来新建数据
 new_datas = pd.DataFrame(columns=template_data.columns) #用来存放单个listing的数据
+
+
+
 shein_data = sheinspdata[0] #测试一条数据
 # TODO: 循环的方式,分父产品子产品做出每个lisitng  <29-12-21, yuzhe> #
+# 将Sheindata 中的bullet_point 转成字典格式
+dict_bullet = eval(shein_data.iloc[0]['bullet_point'])
+# ic(dict_bullet)
 for index, row in shein_data.iterrows():
     if index == 0: # parent sku
         # Series >> DataFrame to_frame方法, 还有就是转字典, 再转list
@@ -69,7 +85,9 @@ for index, row in shein_data.iterrows():
         new_data["color_name"] = row['color']
         new_data["color_map"] = row['color']
         # 30%的毛利 取两位小数
-        new_data["standard_price"] = round(float(row['price'].strip("￥").replace(",", "")) * 1.3, 2)
+        # price = str(row["price"])
+        price = str(row["price"]).replace(",", "").strip("¥")
+        new_data["standard_price"] = round(float(price) * 1.3, 2)
         # 父SKU
         new_data["parent_sku"] = shein_data.iloc[0]["sku"]
         # TODO: 五点和材质  <29-12-21, yuzhe> #
@@ -77,6 +95,27 @@ for index, row in shein_data.iterrows():
 
     new_data["item_sku"] = row['sku']
     new_data["item_name"] = row['title']
+    try:
+        # 成分, 有两种表达方式
+        new_data["outer_material_type"] = dict_bullet["材料"]
+        new_data["material_composition"] = dict_bullet["成分"]
+    except Exception as e:
+        new_data["outer_material_type"] = dict_bullet["ファブリック"]
+        new_data["material_composition"] = dict_bullet["ファブリック"]
+    # 衣门襟
+    # .get 方法,如果没找到值,就返回None
+    new_data["closure_type"] = dict_bullet.get("プラケット-タイプ")
+    # 衣领
+    new_data["neck_style"] = dict_bullet.get("ネックライン")
+    new_data["collar_style"] = dict_bullet.get("ネックライン")
+    # 风格
+    new_data["lifestyle"] = dict_bullet.get("スタイル")
+    new_data["style_keywords"] = dict_bullet.get("スタイル")
+    # 季节
+    new_data["seasons"] = dict_bullet.get("シーズン")
+    # 袖型
+    new_data["sleeve_type"] = dict_bullet.get("袖丈")
+
     new_data["product_description"] = row['description']
     # new_data["outer_material_type"] = row['']
     new_data["main_image_url"] = row['image1']
@@ -97,5 +136,10 @@ for index, row in shein_data.iterrows():
     # new_datas = pd.concat([new_datas, new_data], axis = 0, ignore_index=True)
     new_datas = new_datas.append(new_data, ignore_index=True)
     # ic(new_datas)
-new_datas.to_excel("onelisting.xlsx",index=False)
+# 插回原来表头 之前head =2
+new_datas.columns = headers.columns
+new_datas = headers.append(new_datas, ignore_index=True)
+writer = pd.ExcelWriter('test.xlsx', engine='xlsxwriter')
+new_datas.to_excel(writer, index=False)
+writer.close()
 # %%
