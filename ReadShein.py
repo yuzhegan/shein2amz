@@ -87,7 +87,10 @@ for index, row in shein_data.iterrows():
         # 30%的毛利 取两位小数
         # price = str(row["price"])
         price = str(row["price"]).replace(",", "").strip("¥")
-        new_data["standard_price"] = round(float(price) * 1.3, 2)
+        if str(price) != "" and str(price) != None:
+            new_data["standard_price"] = round(float(price) * 1.3, 2)
+        else:
+            new_data["standard_price"] = 4500  #如果价格没找到就给个初始值
         # 父SKU
         new_data["parent_sku"] = shein_data.iloc[0]["sku"]
         # TODO: 五点和材质  <29-12-21, yuzhe> #
@@ -137,9 +140,10 @@ for index, row in shein_data.iterrows():
     new_datas = new_datas.append(new_data, ignore_index=True)
     # ic(new_datas)
 # 插回原来表头 之前head =2
-new_datas.columns = headers.columns
-new_datas = headers.append(new_datas, ignore_index=True)
-writer = pd.ExcelWriter('test.xlsx', engine='xlsxwriter')
-new_datas.to_excel(writer, index=False)
-writer.close()
+def Write2listing(new_datas):
+    new_datas.columns = headers.columns
+    new_datas = headers.append(new_datas, ignore_index=True)
+    writer = pd.ExcelWriter('test.xlsx', engine='xlsxwriter')
+    new_datas.to_excel(writer, index=False)
+    writer.close()
 # %%

@@ -1,0 +1,8 @@
+
+# Created by https://www.toptal.com/developers/gitignore/api/1c
+# Edit at https://www.toptal.com/developers/gitignore?templates=1c
+
+### 1C ###
+# 1C external data processors on unmanaged formes
+
+~$test.xlsx
